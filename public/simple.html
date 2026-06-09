@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>WebMCP Simple Demo</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+				background: #0f0f0f;
+				color: #e0e0e0;
+				min-height: 100vh;
+				padding: 2rem;
+			}
+			.container {
+				max-width: 600px;
+				margin: 0 auto;
+			}
+			h1 {
+				font-size: 1.5rem;
+				margin-bottom: 1rem;
+			}
+			h2 {
+				font-size: 1rem;
+				color: #888;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				margin: 1.5rem 0 0.75rem;
+			}
+
+			.badge {
+				display: inline-block;
+				font-size: 0.75rem;
+				padding: 0.25rem 0.75rem;
+				border-radius: 999px;
+				font-weight: 500;
+				margin-bottom: 1rem;
+			}
+			.badge.off {
+				background: #2a1a1a;
+				color: #f87171;
+			}
+			.badge.on {
+				background: #1a2a1a;
+				color: #4ade80;
+			}
+
+			form {
+				display: flex;
+				gap: 0.5rem;
+				margin-bottom: 1rem;
+			}
+			form input[type="text"] {
+				flex: 1;
+				background: #1a1a1a;
+				color: #e0e0e0;
+				border: 1px solid #333;
+				padding: 0.5rem 0.75rem;
+				border-radius: 6px;
+				font-size: 0.95rem;
+				outline: none;
+			}
+			form input[type="text"]:focus {
+				border-color: #555;
+			}
+			button {
+				background: #2a2a2a;
+				color: #e0e0e0;
+				border: 1px solid #444;
+				padding: 0.5rem 1rem;
+				border-radius: 6px;
+				cursor: pointer;
+				font-size: 0.875rem;
+			}
+			button:hover {
+				background: #3a3a3a;
+			}
+
+			ul {
+				list-style: none;
+			}
+			li {
+				display: flex;
+				align-items: center;
+				gap: 0.75rem;
+				padding: 0.75rem;
+				border-bottom: 1px solid #1f1f1f;
+			}
+			li:hover {
+				background: #1a1a1a;
+				border-radius: 6px;
+			}
+			li.done .title {
+				text-decoration: line-through;
+				color: #666;
+			}
+			.title {
+				flex: 1;
+				cursor: pointer;
+			}
+			.del {
+				background: none;
+				border: none;
+				color: #666;
+				cursor: pointer;
+				font-size: 1.1rem;
+				padding: 0 0.25rem;
+			}
+			.del:hover {
+				color: #f87171;
+			}
+			.cb {
+				width: 18px;
+				height: 18px;
+				accent-color: #4ade80;
+				cursor: pointer;
+			}
+			.empty {
+				text-align: center;
+				color: #555;
+				padding: 2rem;
+				font-style: italic;
+			}
+
+			.tool-card {
+				background: #1a1a1a;
+				border: 1px solid #2a2a2a;
+				border-radius: 8px;
+				padding: 0.75rem 1rem;
+				margin-bottom: 0.5rem;
+			}
+			.tool-name {
+				font-weight: 600;
+				color: #a78bfa;
+				font-family: monospace;
+				font-size: 0.9rem;
+			}
+			.tool-desc {
+				font-size: 0.8rem;
+				color: #888;
+				margin-top: 0.25rem;
+			}
+
+			#log {
+				margin-top: 1.5rem;
+				padding-top: 1rem;
+				border-top: 1px solid #1f1f1f;
+				font-family: monospace;
+				font-size: 0.8rem;
+				color: #888;
+				max-height: 200px;
+				overflow-y: auto;
+			}
+			#log div {
+				padding: 0.2rem 0;
+			}
+			#log .call {
+				color: #a78bfa;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>WebMCP Simple Demo</h1>
+			<span id="status" class="badge off">Checking WebMCP...</span>
+
+			<form onsubmit="handleAdd(event)">
+				<input
+					id="input"
+					type="text"
+					placeholder="What needs to be done?"
+					autocomplete="off"
+				/>
+				<button type="submit">Add</button>
+			</form>
+
+			<ul id="list"></ul>
+
+			<h2>Registered Tools</h2>
+			<div id="tools"></div>
+
+			<h2>Tool Call Log</h2>
+			<div id="log"><div class="empty">Waiting for AI agent tool calls...</div></div>
+		</div>
+
+		<script>
+			// -----------------------------------------------------------------------
+			// In-memory todo store (no backend, no auth — everything lives here)
+			// -----------------------------------------------------------------------
+			let nextId = 1
+			let todos = []
+
+			function addTodo(title) {
+				const todo = { id: String(nextId++), title, done: false }
+				todos.push(todo)
+				render()
+				return todo
+			}
+
+			function toggleTodo(id) {
+				const todo = todos.find((t) => t.id === id)
+				if (todo) todo.done = !todo.done
+				render()
+				return todo || { error: "not found" }
+			}
+
+			function deleteTodo(id) {
+				const idx = todos.findIndex((t) => t.id === id)
+				if (idx === -1) return { error: "not found" }
+				const [removed] = todos.splice(idx, 1)
+				render()
+				return removed
+			}
+
+			// -----------------------------------------------------------------------
+			// UI
+			// -----------------------------------------------------------------------
+			const listEl = document.getElementById("list")
+
+			function render() {
+				if (!todos.length) {
+					listEl.innerHTML =
+						'<li class="empty">No todos yet — add one or ask an AI agent!</li>'
+					return
+				}
+				listEl.innerHTML = todos
+					.map(
+						(t) => `
+        <li class="${t.done ? "done" : ""}">
+          <input type="checkbox" class="cb" ${t.done ? "checked" : ""} onchange="toggleTodo('${t.id}')" />
+          <span class="title" onclick="toggleTodo('${t.id}')">${esc(t.title)}</span>
+          <button class="del" onclick="deleteTodo('${t.id}')">&times;</button>
+        </li>
+      `,
+					)
+					.join("")
+			}
+
+			function esc(s) {
+				const d = document.createElement("div")
+				d.textContent = s
+				return d.innerHTML
+			}
+
+			function handleAdd(e) {
+				e.preventDefault()
+				const v = document.getElementById("input").value.trim()
+				if (!v) return
+				document.getElementById("input").value = ""
+				addTodo(v)
+			}
+
+			function log(msg, isTool) {
+				const el = document.getElementById("log")
+				if (el.querySelector(".empty")) el.innerHTML = ""
+				const div = document.createElement("div")
+				div.className = isTool ? "call" : ""
+				div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`
+				el.prepend(div)
+			}
+
+			render()
+
+			// -----------------------------------------------------------------------
+			// WebMCP — register tools via document.modelContext
+			// -----------------------------------------------------------------------
+			function mcpResult(value) {
+				return { content: [{ type: "text", text: JSON.stringify(value) }] }
+			}
+
+			const TOOLS = [
+				{
+					name: "listTodos",
+					description: "List all todo items. Returns an array of { id, title, done }.",
+					annotations: { readOnlyHint: true },
+					execute: async () => {
+						log("listTodos() called", true)
+						return mcpResult(todos)
+					},
+				},
+				{
+					name: "addTodo",
+					description: "Add a new todo item.",
+					inputSchema: {
+						type: "object",
+						properties: {
+							title: { type: "string", description: "The todo item text" },
+						},
+						required: ["title"],
+					},
+					execute: async ({ title }) => {
+						log(`addTodo("${title}") called`, true)
+						return mcpResult(addTodo(title))
+					},
+				},
+				{
+					name: "toggleTodo",
+					description: "Toggle a todo item between done and not done.",
+					inputSchema: {
+						type: "object",
+						properties: {
+							id: { type: "string", description: "The todo item ID" },
+						},
+						required: ["id"],
+					},
+					execute: async ({ id }) => {
+						log(`toggleTodo("${id}") called`, true)
+						return mcpResult(toggleTodo(id))
+					},
+				},
+				{
+					name: "deleteTodo",
+					description: "Delete a todo item by ID.",
+					inputSchema: {
+						type: "object",
+						properties: {
+							id: { type: "string", description: "The todo item ID" },
+						},
+						required: ["id"],
+					},
+					execute: async ({ id }) => {
+						log(`deleteTodo("${id}") called`, true)
+						return mcpResult(deleteTodo(id))
+					},
+				},
+			]
+
+			const statusEl = document.getElementById("status")
+			const toolsEl = document.getElementById("tools")
+
+			if (!document.modelContext) {
+				statusEl.textContent = "WebMCP not available — enable the flag in Chrome Canary"
+				statusEl.className = "badge off"
+				log("document.modelContext not found")
+			} else {
+				try {
+					const controller = new AbortController()
+					const opts = { signal: controller.signal }
+
+					for (const tool of TOOLS) {
+						document.modelContext.registerTool(tool, opts)
+					}
+
+					statusEl.textContent = `WebMCP: ${TOOLS.length} tools registered`
+					statusEl.className = "badge on"
+					toolsEl.innerHTML = TOOLS.map(
+						(t) => `
+          <div class="tool-card">
+            <div class="tool-name">${t.name}</div>
+            <div class="tool-desc">${t.description}</div>
+          </div>
+        `,
+					).join("")
+					log(`Registered ${TOOLS.length} WebMCP tools`)
+				} catch (err) {
+					statusEl.textContent = "WebMCP registration failed"
+					statusEl.className = "badge off"
+					log(`Registration error: ${err.message}`)
+				}
+			}
+		</script>
+	</body>
+</html>

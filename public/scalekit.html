@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>WebMCP + ScaleKit Auth Demo</title>
+		<link rel="stylesheet" href="/style.css" />
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1>WebMCP Todo</h1>
+				<div id="auth-area">
+					<button id="login-btn">Login with ScaleKit</button>
+					<button id="logout-btn" hidden>Logout</button>
+				</div>
+			</header>
+
+			<!-- Status badges -->
+			<div id="status-bar">
+				<span id="auth-status" class="badge off">Not authenticated</span>
+				<span id="webmcp-status" class="badge off">WebMCP not registered</span>
+			</div>
+
+			<!-- Add todo form (visible only when logged in) -->
+			<form id="add-form" hidden>
+				<input
+					id="todo-input"
+					type="text"
+					placeholder="What needs to be done?"
+					autocomplete="off"
+				/>
+				<button type="submit">Add</button>
+			</form>
+
+			<!-- Todo list -->
+			<ul id="todo-list"></ul>
+
+			<!-- Registered WebMCP tools (for demo visibility) -->
+			<section id="tools-section" hidden>
+				<h2>Registered WebMCP Tools</h2>
+				<div id="tools-list"></div>
+			</section>
+		</div>
+
+		<script src="/app.js"></script>
+	</body>
+</html>
